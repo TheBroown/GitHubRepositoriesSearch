@@ -150,7 +150,7 @@ class SearchReposActivity : AppCompatActivity() {
             menu!!.findItem(R.id.quit).title = "Войти"
         }
         val manager = getSystemService(Context.SEARCH_SERVICE) as SearchManager
-        val searchItem = menu?.findItem(R.id.search)
+        val searchItem = menu.findItem(R.id.search)
         val searchView = searchItem?.actionView as SearchView
 
         searchView.setSearchableInfo(manager.getSearchableInfo(componentName))
