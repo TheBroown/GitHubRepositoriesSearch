@@ -1,6 +1,8 @@
 package com.dmitrystepanishchev.testgithubsearch
 
+import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Base64
@@ -29,35 +31,55 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun nextActivity(view: View) {
-        val intent = Intent(this, SearchReposActivity::class.java)
-        intent.putExtra("isAuthorized", false)
-        startActivity(intent)
+        val cm = baseContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val networkInfo = cm.activeNetworkInfo
+        if (networkInfo != null && networkInfo.isConnected) {
+
+
+            val intent = Intent(this, SearchReposActivity::class.java)
+            intent.putExtra("isAuthorized", false)
+            startActivity(intent)
+        } else {
+            Toast.makeText(this, "Нет подключения к интернету", Toast.LENGTH_LONG).show()
+
+        }
+
     }
 
     fun logInGitHub(view: View) {
-        val editTextToken: EditText = findViewById(R.id.tokenET)
 
-        val tokenText: String = editTextToken.text.toString()
+        val cm = baseContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val networkInfo = cm.activeNetworkInfo
 
-        GlobalScope.launch {
-            val request = Request.Builder().url("https://api.github.com/user")
-                .addHeader("Authorization", "token $tokenText").build()
+        if (networkInfo != null && networkInfo.isConnected) {
+            val editTextToken: EditText = findViewById(R.id.tokenET)
 
-            client.newCall(request).execute().use { response ->
-                userIsAuthorized = response.code == 200
+            val tokenText: String = editTextToken.text.toString()
+
+            GlobalScope.launch {
+                val request = Request.Builder().url("https://api.github.com/user")
+                    .addHeader("Authorization", "token $tokenText").build()
+
+                client.newCall(request).execute().use { response ->
+                    userIsAuthorized = response.code == 200
+                }
+                requestIsEnded = true
             }
-            requestIsEnded=true
+
+            while (!requestIsEnded) { }
+            if (userIsAuthorized) {
+                val intent = Intent(this, SearchReposActivity::class.java)
+                intent.putExtra("isAuthorized", true)
+                intent.putExtra("tokenString", tokenText)
+                startActivity(intent)
+
+            } else {
+                Toast.makeText(this, "Неверный токен", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            Toast.makeText(this, "Нет подключения к интернету", Toast.LENGTH_LONG).show()
+
         }
 
-        while(!requestIsEnded){}
-        if(userIsAuthorized){
-            val intent = Intent(this, SearchReposActivity::class.java)
-            intent.putExtra("isAuthorized", true)
-            intent.putExtra("tokenString", tokenText)
-            startActivity(intent)
-
-        }else{
-            Toast.makeText(this,"Неверный токен", Toast.LENGTH_LONG).show()
-        }
     }
 }

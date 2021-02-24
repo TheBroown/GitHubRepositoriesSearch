@@ -3,11 +3,13 @@ package com.dmitrystepanishchev.testgithubsearch
 import android.app.SearchManager
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.Toast
 import androidx.appcompat.widget.SearchView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -31,7 +33,7 @@ class SearchReposActivity : AppCompatActivity() {
     private var toAdd = true
     private var isFinding = false
     private lateinit var repoAdapter: RepoAdapter
-    private  var topElementPosition = 0
+    private var topElementPosition = 0
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,9 +62,10 @@ class SearchReposActivity : AppCompatActivity() {
 
         recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                val topElementIndex = (recyclerView.layoutManager as LinearLayoutManager).findFirstVisibleItemPosition()
+                val topElementIndex =
+                    (recyclerView.layoutManager as LinearLayoutManager).findFirstVisibleItemPosition()
                 super.onScrolled(recyclerView, dx, dy)
-                if (topElementIndex> repos.size - 50 && repos.size > 0 && toAdd) {
+                if (topElementIndex > repos.size - 50 && repos.size > 0 && toAdd) {
                     toAdd = false
                     findRepos()
                 }
@@ -76,56 +79,66 @@ class SearchReposActivity : AppCompatActivity() {
     }
 
     fun findRepos() {
-        GlobalScope.launch {
-            try {
+        val cm = baseContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val networkInfo = cm.activeNetworkInfo
 
-                val request: Request
-                if (isAuthorized)
-                    request = Request.Builder()
-                        .url("https://api.github.com/search/repositories?q=$searchString&per_page=100&page=$pageNumber")
-                        .addHeader("Authorization", "token $token").build()
-                else
-                    request = Request.Builder()
-                        .url("https://api.github.com/search/repositories?q=$searchString&per_page=100&page=$pageNumber")
-                        .build()
+        if (networkInfo != null && networkInfo.isConnected) {
+            GlobalScope.launch {
+                try {
 
-                var json: JSONObject
-                isFinding = true
-                client.newCall(request).execute().use { response ->
-                    json = JSONObject(response.body!!.string())
+                    val request: Request
+                    if (isAuthorized)
+                        request = Request.Builder()
+                            .url("https://api.github.com/search/repositories?q=$searchString&per_page=100&page=$pageNumber")
+                            .addHeader("Authorization", "token $token").build()
+                    else
+                        request = Request.Builder()
+                            .url("https://api.github.com/search/repositories?q=$searchString&per_page=100&page=$pageNumber")
+                            .build()
+
+                    var json: JSONObject
+                    isFinding = true
+                    client.newCall(request).execute().use { response ->
+                        json = JSONObject(response.body!!.string())
+                    }
+
+                    pageNumber++
+
+                    val array = json.getJSONArray("items")
+
+                    MainScope().launch {
+
+                    }
+                    for (i in 0 until array.length()) {
+
+                        val o = array.getJSONObject(i)
+
+                        val newRepo = Repo(
+                            o.getString("url"),
+                            o.getString("name"),
+                            o.getString("description"),
+                            o.getJSONObject("owner").getString("avatar_url")
+                        )
+                        repos.add(newRepo)
+                    }
+                } catch (e: Exception) {
+                    //Log.e("catch", e.toString())
                 }
-
-                pageNumber++
-
-                val array = json.getJSONArray("items")
-
                 MainScope().launch {
+                    repoAdapter.notifyDataSetChanged()
+                    toAdd = true
+                    findViewById<androidx.core.widget.ContentLoadingProgressBar>(R.id.progressBar).visibility =
+                        androidx.core.widget.ContentLoadingProgressBar.GONE
 
                 }
-                for (i in 0 until array.length()) {
-
-                    val o = array.getJSONObject(i)
-
-                    val newRepo = Repo(
-                        o.getString("url"),
-                        o.getString("name"),
-                        o.getString("description"),
-                        o.getJSONObject("owner").getString("avatar_url")
-                    )
-                    repos.add(newRepo)
-                }
-            } catch (e: Exception) {
-                //Log.e("catch", e.toString())
             }
-            MainScope().launch {
-                repoAdapter.notifyDataSetChanged()
-                toAdd = true
-                findViewById<androidx.core.widget.ContentLoadingProgressBar>(R.id.progressBar).visibility =
-                    androidx.core.widget.ContentLoadingProgressBar.GONE
+        } else {
+            Toast.makeText(this, "Нет подключения к интернету", Toast.LENGTH_LONG).show()
+            toAdd = true
 
-            }
         }
         isFinding = false
+
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -184,7 +197,10 @@ class SearchReposActivity : AppCompatActivity() {
         outState.putParcelableArrayList("reposArray", repos)
         outState.putInt("pageNumber", pageNumber)
         outState.putString("searchString", searchString)
-        outState.putInt("scrollPos", (recyclerView.layoutManager as LinearLayoutManager).findFirstVisibleItemPosition())
+        outState.putInt(
+            "scrollPos",
+            (recyclerView.layoutManager as LinearLayoutManager).findFirstVisibleItemPosition()
+        )
     }
 }
 
