@@ -30,18 +30,15 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
     }
 
-    fun nextActivity(view: View) {
+    fun unauthorizedAccess(view: View) {
         val cm = baseContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkInfo = cm.activeNetworkInfo
         if (networkInfo != null && networkInfo.isConnected) {
-
-
             val intent = Intent(this, SearchReposActivity::class.java)
             intent.putExtra("isAuthorized", false)
             startActivity(intent)
         } else {
             Toast.makeText(this, "Нет подключения к интернету", Toast.LENGTH_LONG).show()
-
         }
 
     }
@@ -56,6 +53,7 @@ class MainActivity : AppCompatActivity() {
 
             val tokenText: String = editTextToken.text.toString()
 
+            //check the token is correct
             GlobalScope.launch {
                 val request = Request.Builder().url("https://api.github.com/user")
                     .addHeader("Authorization", "token $tokenText").build()

@@ -22,6 +22,6 @@
         android:layout_height="wrap_content"
         android:text="продолжить \n анонимно"
         android:textAlignment="center"
-        android:onClick="nextActivity"/>
+        android:onClick="unauthorizedAccess"/>
 
 </LinearLayout>

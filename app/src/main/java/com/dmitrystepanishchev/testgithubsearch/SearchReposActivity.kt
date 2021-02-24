@@ -43,7 +43,6 @@ class SearchReposActivity : AppCompatActivity() {
         if (isAuthorized)
             token = intent.getStringExtra("tokenString")
 
-
         recyclerView = findViewById(R.id.listRepos)
 
 
@@ -60,10 +59,10 @@ class SearchReposActivity : AppCompatActivity() {
         repoAdapter = RepoAdapter(repos)
         recyclerView.adapter = repoAdapter
 
+        //load data before scrolling to the bottom of view
         recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                val topElementIndex =
-                    (recyclerView.layoutManager as LinearLayoutManager).findFirstVisibleItemPosition()
+                val topElementIndex = (recyclerView.layoutManager as LinearLayoutManager).findFirstVisibleItemPosition()
                 super.onScrolled(recyclerView, dx, dy)
                 if (topElementIndex > repos.size - 50 && repos.size > 0 && toAdd) {
                     toAdd = false
@@ -85,7 +84,6 @@ class SearchReposActivity : AppCompatActivity() {
         if (networkInfo != null && networkInfo.isConnected) {
             GlobalScope.launch {
                 try {
-
                     val request: Request
                     if (isAuthorized)
                         request = Request.Builder()
@@ -106,9 +104,6 @@ class SearchReposActivity : AppCompatActivity() {
 
                     val array = json.getJSONArray("items")
 
-                    MainScope().launch {
-
-                    }
                     for (i in 0 until array.length()) {
 
                         val o = array.getJSONObject(i)
@@ -149,6 +144,7 @@ class SearchReposActivity : AppCompatActivity() {
         } else {
             menu!!.findItem(R.id.quit).title = "Войти"
         }
+
         val manager = getSystemService(Context.SEARCH_SERVICE) as SearchManager
         val searchItem = menu.findItem(R.id.search)
         val searchView = searchItem?.actionView as SearchView
