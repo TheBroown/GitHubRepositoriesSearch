@@ -1,6 +1,5 @@
 package com.dmitrystepanishchev.testgithubsearch
 
-import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -23,7 +22,6 @@ class RepoAdapter(var repos: ArrayList<Repo>) :
     }
 
     override fun onBindViewHolder(holder: RepoAdapter.ViewHolder, position: Int) {
-
             val s = repos[position]
             var v = holder.view.findViewById<TextView>(R.id.titleTextView)
             v.text = s.Title
@@ -38,7 +36,5 @@ class RepoAdapter(var repos: ArrayList<Repo>) :
     override fun getItemCount(): Int {
         return repos.size
     }
-
-
 }
 

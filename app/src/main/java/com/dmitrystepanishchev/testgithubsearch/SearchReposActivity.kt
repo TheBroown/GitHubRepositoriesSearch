@@ -6,7 +6,6 @@ import android.content.Intent
 import android.net.ConnectivityManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
@@ -18,33 +17,34 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONArray
 import org.json.JSONObject
 import java.lang.Exception
 
 class SearchReposActivity : AppCompatActivity() {
 
-    private var isAuthorized = false
-    private var token = ""
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var repoAdapter: RepoAdapter
+    private lateinit var linearLayoutManager: LinearLayoutManager
     private var client = OkHttpClient()
     private var repos = ArrayList<Repo>()
+    private var token = ""
     private var searchString = ""
-    private lateinit var recyclerView: RecyclerView
+    private var topElementPosition = 0
     private var pageNumber = 1
+    private var isAuthorized = false
     private var toAdd = true
     private var isFinding = false
-    private lateinit var repoAdapter: RepoAdapter
-    private var topElementPosition = 0
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_search_repos)
+        recyclerView = findViewById(R.id.listRepos)
+        linearLayoutManager = recyclerView.layoutManager as LinearLayoutManager
+
         isAuthorized = intent.getBooleanExtra("isAuthorized", false)
         if (isAuthorized)
             token = intent.getStringExtra("tokenString")
-
-        recyclerView = findViewById(R.id.listRepos)
-
 
         if (savedInstanceState != null) {
             pageNumber = savedInstanceState.getInt("pageNumber")
@@ -62,19 +62,20 @@ class SearchReposActivity : AppCompatActivity() {
         //load data before scrolling to the bottom of view
         recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                val topElementIndex = (recyclerView.layoutManager as LinearLayoutManager).findFirstVisibleItemPosition()
                 super.onScrolled(recyclerView, dx, dy)
+                val topElementIndex = linearLayoutManager.findFirstVisibleItemPosition()
+
                 if (topElementIndex > repos.size - 50 && repos.size > 0 && toAdd) {
                     toAdd = false
                     findRepos()
                 }
+
                 if (topElementIndex >= repos.size - 11 && isFinding && repos.size > 0)
                     findViewById<androidx.core.widget.ContentLoadingProgressBar>(R.id.progressBar).visibility =
                         androidx.core.widget.ContentLoadingProgressBar.VISIBLE
             }
         })
-
-        (recyclerView.layoutManager as LinearLayoutManager).scrollToPosition(topElementPosition)
+        linearLayoutManager.scrollToPosition(topElementPosition)
     }
 
     fun findRepos() {
@@ -84,7 +85,10 @@ class SearchReposActivity : AppCompatActivity() {
         if (networkInfo != null && networkInfo.isConnected) {
             GlobalScope.launch {
                 try {
-                    val request: Request
+                    var request: Request
+                    var json: JSONObject
+                    isFinding = true
+
                     if (isAuthorized)
                         request = Request.Builder()
                             .url("https://api.github.com/search/repositories?q=$searchString&per_page=100&page=$pageNumber")
@@ -94,20 +98,15 @@ class SearchReposActivity : AppCompatActivity() {
                             .url("https://api.github.com/search/repositories?q=$searchString&per_page=100&page=$pageNumber")
                             .build()
 
-                    var json: JSONObject
-                    isFinding = true
                     client.newCall(request).execute().use { response ->
                         json = JSONObject(response.body!!.string())
                     }
-
                     pageNumber++
 
-                    val array = json.getJSONArray("items")
+                    val array  = json.getJSONArray("items")
 
                     for (i in 0 until array.length()) {
-
                         val o = array.getJSONObject(i)
-
                         val newRepo = Repo(
                             o.getString("url"),
                             o.getString("name"),
@@ -116,38 +115,35 @@ class SearchReposActivity : AppCompatActivity() {
                         )
                         repos.add(newRepo)
                     }
-                } catch (e: Exception) {
-                    //Log.e("catch", e.toString())
-                }
+                } catch (e: Exception) { }
+
                 MainScope().launch {
                     repoAdapter.notifyDataSetChanged()
                     toAdd = true
                     findViewById<androidx.core.widget.ContentLoadingProgressBar>(R.id.progressBar).visibility =
                         androidx.core.widget.ContentLoadingProgressBar.GONE
-
                 }
             }
         } else {
             Toast.makeText(this, "Нет подключения к интернету", Toast.LENGTH_LONG).show()
             toAdd = true
-
         }
         isFinding = false
-
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.menu_search_repos, menu)
 
-        if (isAuthorized) {
-            menu!!.findItem(R.id.quit).title = "Выйти"
-        } else {
-            menu!!.findItem(R.id.quit).title = "Войти"
-        }
-
         val manager = getSystemService(Context.SEARCH_SERVICE) as SearchManager
-        val searchItem = menu.findItem(R.id.search)
+        val searchItem = menu!!.findItem(R.id.search)
         val searchView = searchItem?.actionView as SearchView
+        val quitItem = menu!!.findItem(R.id.quit)
+
+        if (isAuthorized) {
+            quitItem.title = "Выйти"
+        } else {
+            quitItem.title = "Войти"
+        }
 
         searchView.setSearchableInfo(manager.getSearchableInfo(componentName))
 
@@ -169,7 +165,6 @@ class SearchReposActivity : AppCompatActivity() {
                 return true
             }
         })
-
         return true
     }
 
@@ -193,11 +188,6 @@ class SearchReposActivity : AppCompatActivity() {
         outState.putParcelableArrayList("reposArray", repos)
         outState.putInt("pageNumber", pageNumber)
         outState.putString("searchString", searchString)
-        outState.putInt(
-            "scrollPos",
-            (recyclerView.layoutManager as LinearLayoutManager).findFirstVisibleItemPosition()
-        )
+        outState.putInt("scrollPos", (recyclerView.layoutManager as LinearLayoutManager).findFirstVisibleItemPosition())
     }
 }
-
-
